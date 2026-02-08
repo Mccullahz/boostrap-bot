@@ -1,0 +1,13 @@
+services:
+  boostrap-bot:
+    build: .
+    container_name: boostrap-bot
+    ports:
+      - "23234:23234"
+    volumes:
+      - ./config:/app/config:ro
+    environment:
+      - BOT_NAME=boostrap
+      - RLBT_HOST=host.docker.internal
+      - RLBT_PORT=23234
+
