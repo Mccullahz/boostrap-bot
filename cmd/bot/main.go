@@ -1,4 +1,4 @@
-// baseline bot connection and initialization for boostrap-bot
+// baseline bot connection and initialization for boostrap-bot, currently following the example from Trey2k's RLBotGo repository, will be modified to fit the needs of boostrap-bot as development continues
 package main
 
 import (
