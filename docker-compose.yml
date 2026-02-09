@@ -2,8 +2,6 @@ services:
   boostrap-bot:
     build: .
     container_name: boostrap-bot
-    ports:
-      - "23234:23234"
     volumes:
       - ./config:/app/config:ro
     environment:
