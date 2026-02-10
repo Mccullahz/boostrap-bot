@@ -1,0 +1,17 @@
+# ML training stack reqs for boostrap-bot
+# Python 3.10+
+
+# core rl libraries
+gymnasium>=0.29.0
+stable-baselines3>=2.2.0
+
+# PyTorch SB3 backend
+# pip install torch --index-url https://download.pytorch.org/whl/cu121
+torch>=2.0.0
+
+# ONNX exporting for Go inference
+onnx>=1.15.0
+onnxruntime>=1.16.0
+
+# numpy utils
+numpy>=1.24.0
