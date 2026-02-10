@@ -2,3 +2,5 @@ github.com/Trey2k/RLBotGo v0.0.0-20220520034821-d6d2b1184b4d h1:P8tKTL60gHB2gVkO
 github.com/Trey2k/RLBotGo v0.0.0-20220520034821-d6d2b1184b4d/go.mod h1:gLV280pEfvXl5d8pJ13xGXToM8+IQPBElrhRMiu91KI=
 github.com/google/flatbuffers v2.0.0+incompatible h1:dicJ2oXwypfwUGnB2/TYWYEKiuk9eYQlQO/AnOHl5mI=
 github.com/google/flatbuffers v2.0.0+incompatible/go.mod h1:1AeVuKshWv4vARoZatz6mlQ0JxURH0Kv5+zNeJKJCa8=
+github.com/yalue/onnxruntime_go v1.25.0 h1:nlhVau1BpLZ/BYr+WpPZCJRD/WES0qo6dK7aKyyAs3g=
+github.com/yalue/onnxruntime_go v1.25.0/go.mod h1:b4X26A8pekNb1ACJ58wAXgNKeUCGEAQ9dmACut9Sm/4=

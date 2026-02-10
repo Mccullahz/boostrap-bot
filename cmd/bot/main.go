@@ -1,49 +1,90 @@
-// baseline bot connection and initialization for boostrap-bot, currently following the example from Trey2k's RLBotGo repository, will be modified to fit the needs of boostrap-bot as development continues
+// bot connection and control for boostrap-bot.
+// uses RLBotGo; supports heuristic fallback and optional ML (ONNX) inference.
 package main
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	RLBot "github.com/Trey2k/RLBotGo"
+
+	"boostrap-bot/internal/control"
+	"boostrap-bot/internal/inference"
+	obspkg "boostrap-bot/internal/obs"
 )
 
-var lastTouch float32
-var totalTouches int = 0
+var (
+	lastTouch    float32
+	totalTouches int
+
+	// mlInferencer is set at startup if model.onnx (or BOOSTRAP_MODEL_PATH) loads successfully.
+	mlInferencer *inference.Inferencer
+	obsBuf       []float32
+)
 
 func getInput(gameState *RLBot.GameState, rlBot *RLBot.RLBot) *RLBot.ControllerState {
-	PlayerInput := &RLBot.ControllerState{}
+	out := &RLBot.ControllerState{}
 
-	// Count ball touches up to 10 and on 11 clear the messages and jump
-	wasjustTouched := false
-	if gameState.GameTick.Ball.LatestTouch.GameSeconds != 0 && lastTouch != gameState.GameTick.Ball.LatestTouch.GameSeconds {
+	// ML path: build obs, run ONNX, convert action → ControllerState
+	if mlInferencer != nil && obsBuf != nil && gameState != nil && gameState.GameTick != nil {
+		obspkg.FromGameState(obsBuf, gameState, rlBot.PlayerIndex)
+		action, err := mlInferencer.Run(obsBuf)
+		if err == nil {
+			control.ActionToControllerState(out, action)
+			return out
+		}
+		// on inference error, fall through to heuristic
+	}
+
+	// heuristic fallback: touch-count → jump from Trey2k example
+	wasJustTouched := false
+	if gameState != nil && gameState.GameTick != nil &&
+		gameState.GameTick.Ball.LatestTouch.GameSeconds != 0 &&
+		lastTouch != gameState.GameTick.Ball.LatestTouch.GameSeconds {
 		totalTouches++
 		lastTouch = gameState.GameTick.Ball.LatestTouch.GameSeconds
-		wasjustTouched = true
+		wasJustTouched = true
 	}
-
-	if wasjustTouched && totalTouches <= 10 {
-		// DebugMessage is a helper function to let you quickly get debug text on screen. it will automatically place it so text will not overlap
+	if wasJustTouched && totalTouches <= 10 {
 		rlBot.DebugMessageAdd(fmt.Sprintf("The ball was touched %d times", totalTouches))
-		PlayerInput.Jump = false
-	} else if wasjustTouched && totalTouches > 10 {
+		out.Jump = false
+	} else if wasJustTouched && totalTouches > 10 {
 		rlBot.DebugMessageClear()
 		totalTouches = 0
-		PlayerInput.Jump = true
+		out.Jump = true
 	}
-	return PlayerInput
+	return out
 }
 
 func main() {
 	log.Println("Initializing boostrap-bot..")
 
-	// connect to RLBot -- cross platform this doesnt work, so we need to env var the connection
+	// ML: try to load ONNX model
+	modelPath := os.Getenv("BOOSTRAP_MODEL_PATH")
+	if modelPath == "" {
+		modelPath = "model.onnx"
+	}
+	if abs, err := filepath.Abs(modelPath); err == nil {
+		modelPath = abs
+	}
+	if _, err := os.Stat(modelPath); err == nil {
+		inf, err := inference.New(modelPath)
+		if err != nil {
+			log.Printf("ML model load failed (using heuristic): %v", err)
+		} else {
+			mlInferencer = inf
+			obsBuf = make([]float32, obspkg.OBS_SIZE)
+			log.Println("ML model loaded:", modelPath)
+		}
+	} else {
+		log.Println("No model file found, using heuristic control")
+	}
+
 	host := os.Getenv("RLBT_HOST")
 	portStr := os.Getenv("RLBT_PORT")
-
-	// defaults if env vars are not set
 	if host == "" {
 		host = "127.0.0.1"
 		log.Println("RLBT_HOST not set, defaulting to localhost")
@@ -52,28 +93,23 @@ func main() {
 		portStr = "23234"
 		log.Println("RLBT_PORT not set, defaulting to 23234")
 	}
-	
+
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// this should use host and port, only using port for now, this is likely to break -- circle back to this
 	rlBot, err := RLBot.Connect(port)
 	if err != nil {
 		log.Println("Failed to connect to RLBot, make sure the RLBot framework is running and the host and port are correct")
 		log.Fatal(err)
 	}
 
-	// Send ready message
-	err = rlBot.SendReadyMessage(true, true, true)
-	if err != nil {
-		panic(err)
+	if err := rlBot.SendReadyMessage(true, true, true); err != nil {
+		log.Fatal(err)
 	}
 
-	// Set our tick handler
-	err = rlBot.SetGetInput(getInput)
-	fmt.Println(err.Error())
+	if err := rlBot.SetGetInput(getInput); err != nil {
+		log.Fatal(err)
+	}
 }
-
-
